@@ -1,4 +1,9 @@
--- Joel : SQL-02 et SQL-03.
--- Tables à créer : users, clubs, players, ads, applications.
--- Définir les colonnes et contraintes avec Matteo et Thomas.
--- Schéma PostgreSQL à implémenter.
+CREATE TABLE users (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(10) NOT NULL
+        CHECK (role IN ('player', 'club', 'admin')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
