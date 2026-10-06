@@ -1,0 +1,3 @@
+-- DB-04 à DB-09 : schéma à écrire après choix SQL et validation du modèle.
+-- Tables prévues : users, clubs, player_profiles, positions, ads, applications.
+-- Aucun CREATE TABLE implémenté à ce stade.

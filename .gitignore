@@ -1,0 +1,29 @@
+# Configuration locale et secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dépendances et compilation
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+vendor/
+dist/
+build/
+coverage/
+
+# Données locales et journaux
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Fichiers propres au poste
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
