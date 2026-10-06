@@ -1,9 +1,7 @@
-CREATE TABLE users (
+CREATE TABLE clubs (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role VARCHAR(10) NOT NULL
-        CHECK (role IN ('player', 'club', 'admin')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+    name VARCHAR(150) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    divisions TEXT
 );
