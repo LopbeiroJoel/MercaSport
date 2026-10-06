@@ -1,3 +1,3 @@
--- DB-09 : données de démonstration à écrire après validation du schéma.
--- Bootstrap : 2 clubs, 3 annonces, 3 joueurs et quelques candidatures.
--- AUTH-06 : compte admin de démonstration sans secret en clair versionné.
+-- Joel : SQL-04.
+-- Ajouter des comptes, clubs, joueurs et annonces de démonstration après création du schéma.
+-- Aucun secret réel ne doit être versionné.
