@@ -76,6 +76,9 @@ backend/
 database/
   schema.sql
   seed.sql
+  queries.sql
+  README.md
+  tests/
 README.md
 .gitignore
 ```
@@ -92,31 +95,38 @@ Les annonces affichées actuellement sont des exemples statiques ; elles devront
 
 ## Installation et lancement
 
-**État actuel :** le front statique peut être ouvert ; le serveur et le schéma SQL restent à écrire.
+La partie PostgreSQL de Joel contient les cinq tables, les validations, les
+donnees de demonstration et les modeles de requetes pour le backend.
+Les commandes et les comptes de test sont detailles dans [database/README.md](database/README.md).
+La preparation des fichiers ne modifie pas automatiquement la base locale.
 
-Pour consulter la base front, ouvrir `frontend/index.html` dans un navigateur.
-Quand les appels `fetch()` seront ajoutés, Thomas documentera le lancement via un serveur HTTP local.
-
-Matteo initialise le backend lors de BACK-01/BACK-02 :
-
-```bash
-cd backend
-npm init -y
-npm install express pg
-```
-
-Après implémentation du serveur, la commande de lancement prévue est `node server.mjs` depuis `backend/`.
-Le port, les variables d'environnement et l'URL de l'API sont à documenter par Matteo une fois définis.
-
-Joel installe PostgreSQL et crée la base `mercasport` lors de SQL-01, puis documente la méthode utilisée sur les postes de l'équipe.
-Après configuration de l'accès PostgreSQL et écriture des fichiers SQL, depuis la racine :
+Pour une **nouvelle base de demonstration**, depuis la racine dans Ubuntu :
 
 ```bash
-psql -d mercasport -f database/schema.sql
-psql -d mercasport -f database/seed.sql
+sudo -u postgres createdb mercasport_demo
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport_demo < database/schema.sql
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport_demo < database/seed.sql
 ```
 
-Ces commandes utilisent les paramètres locaux de connexion PostgreSQL ; les fichiers actuels contiennent seulement des indications.
+Pour la base existante `mercasport`, suivre la section de sauvegarde et de mise
+a niveau de [database/README.md](database/README.md) pour conserver les comptes et clubs.
+Les anciens clubs passent en validation `pending` si la colonne status n'existait pas.
+
+Test SQL isole, sans toucher a mercasport :
+
+```bash
+python3 database/tests/run.py
+```
+
+La demonstration contient Joel Lopes Ribeiro, Thomas Lapin et Matteo GrosBras
+comme joueurs, ainsi que les clubs et un compte admin.
+Le mot de passe public de demonstration ne doit jamais servir sur un site public.
+
+Le frontend reste la partie de Thomas : ouvrir `frontend/index.html` pour la
+version statique ; Thomas documentera son serveur HTTP pour les appels fetch.
+Matteo garde Node.js/Express, la connexion pg et les controles de role.
+Il peut utiliser [database/queries.sql](database/queries.sql) comme reference de requetes parametrees.
+La commande du serveur, son port et son `.env` seront documentes avec son implementation.
 
 ## Les 17 tâches essentielles
 
