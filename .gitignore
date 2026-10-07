@@ -27,3 +27,6 @@ coverage/
 Thumbs.db
 *.swp
 *.swo
+
+# Sauvegardes PostgreSQL locales
+*.dump
