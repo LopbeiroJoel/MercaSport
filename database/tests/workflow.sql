@@ -1,70 +1,49 @@
--- Test fonctionnel SQL : aucune donnee de test conservee (ROLLBACK).
+-- Contraintes et cascades : toutes les annonces sont utilisables sans moderation.
 BEGIN;
 DO $$
-DECLARE owner_id INTEGER; player_user INTEGER; player_profile INTEGER;
-        club_id INTEGER; ad_id INTEGER; actual_status TEXT;
+DECLARE test_club INTEGER; test_team INTEGER; test_ad INTEGER;
 BEGIN
-    INSERT INTO users (name, email, password_hash, role)
-    VALUES ('Club test', 'workflow-club@test.invalid', '!test!', 'club') RETURNING id INTO owner_id;
-    INSERT INTO clubs (user_id, name, city) VALUES (owner_id, 'Club test', 'Test')
-    RETURNING id, status INTO club_id, actual_status;
-    IF actual_status <> 'pending' THEN RAISE EXCEPTION 'Club non pending par defaut'; END IF;
-
+    INSERT INTO clubs(name, city) VALUES ('Club test SQL', 'Test') RETURNING id INTO test_club;
+    INSERT INTO teams(club_id, name, division, category)
+    VALUES (test_club, 'Équipe D1', 'D1', 'Senior') RETURNING id INTO test_team;
     BEGIN
-        INSERT INTO ads (club_id, title, position, city, description)
-        VALUES (club_id, 'Test', 'Gardien', 'Test', 'Test');
-        RAISE EXCEPTION 'Un club pending a pu creer une annonce';
-    EXCEPTION WHEN check_violation THEN NULL;
-    END;
-
-    UPDATE clubs SET status = 'approved' WHERE id = club_id;
-    INSERT INTO ads (club_id, title, position, city, description)
-    VALUES (club_id, 'Test', 'Gardien', 'Test', 'Test') RETURNING id, status INTO ad_id, actual_status;
-    IF actual_status <> 'pending' THEN RAISE EXCEPTION 'Annonce non pending par defaut'; END IF;
-    IF EXISTS (SELECT 1 FROM approved_ads WHERE id = ad_id) THEN
-        RAISE EXCEPTION 'Annonce pending visible publiquement';
-    END IF;
-
-    INSERT INTO users (name, email, password_hash, role)
-    VALUES ('Joueur test', 'workflow-player@test.invalid', '!test!', 'player') RETURNING id INTO player_user;
-    INSERT INTO players (user_id, first_name, last_name)
-    VALUES (player_user, 'Joueur', 'Test') RETURNING id INTO player_profile;
-
-    BEGIN
-        INSERT INTO applications (player_id, ad_id) VALUES (player_profile, ad_id);
-        RAISE EXCEPTION 'Candidature autorisee sur annonce pending';
-    EXCEPTION WHEN check_violation THEN NULL;
-    END;
-
-    UPDATE ads SET status = 'approved' WHERE id = ad_id;
-    IF NOT EXISTS (SELECT 1 FROM approved_ads WHERE id = ad_id) THEN
-        RAISE EXCEPTION 'Annonce approuvee invisible';
-    END IF;
-    INSERT INTO applications (player_id, ad_id, message) VALUES (player_profile, ad_id, 'Je postule.');
-    BEGIN
-        INSERT INTO applications (player_id, ad_id) VALUES (player_profile, ad_id);
-        RAISE EXCEPTION 'Double candidature acceptee';
+        INSERT INTO teams(club_id, name, division, category)
+        VALUES (test_club, 'Doublon', 'D1', 'Senior');
+        RAISE EXCEPTION 'Equipe dupliquee acceptee';
     EXCEPTION WHEN unique_violation THEN NULL;
     END;
-
-    UPDATE clubs SET status = 'rejected' WHERE id = club_id;
-    IF EXISTS (SELECT 1 FROM approved_ads WHERE id = ad_id) THEN
-        RAISE EXCEPTION 'Annonce dun club rejete visible';
+    INSERT INTO ads(team_id, title, position) VALUES (test_team, 'Gardien test', 'Gardien')
+    RETURNING id INTO test_ad;
+    IF NOT EXISTS (SELECT 1 FROM ads_details WHERE id = test_ad) THEN
+        RAISE EXCEPTION 'Annonce creee invisible';
     END IF;
+    INSERT INTO applications(ad_id, name, email, phone, message)
+    VALUES (test_ad, 'Test direct', ' Test@Test.invalid ', NULL, 'Sans compte obligatoire.');
     BEGIN
-        UPDATE ads SET status = 'approved' WHERE id = ad_id;
-        RAISE EXCEPTION 'Approbation possible pour un club rejete';
+        INSERT INTO applications(ad_id, name, email) VALUES (test_ad, 'Doublon', 'test@test.invalid');
+        RAISE EXCEPTION 'Doublon email accepte';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    BEGIN
+        INSERT INTO applications(ad_id, email) VALUES (test_ad, 'sans-nom@test.invalid');
+        RAISE EXCEPTION 'Nom absent accepte';
+    EXCEPTION WHEN not_null_violation THEN NULL;
+    END;
+    BEGIN
+        UPDATE ads SET preferred_foot = 'Inconnu' WHERE id = test_ad;
+        RAISE EXCEPTION 'Pied invalide accepte';
     EXCEPTION WHEN check_violation THEN NULL;
     END;
     BEGIN
-        UPDATE clubs SET status = 'inconnu' WHERE id = club_id;
-        RAISE EXCEPTION 'Statut invalide accepte';
-    EXCEPTION WHEN check_violation THEN NULL;
-    END;
-    BEGIN
-        INSERT INTO players (user_id, first_name, last_name) VALUES (-1, 'Inexistant', 'Test');
-        RAISE EXCEPTION 'Cle etrangere absente';
+        INSERT INTO ads(team_id, title, position) VALUES (-1, 'Orphelin', 'Gardien');
+        RAISE EXCEPTION 'Equipe absente acceptee';
     EXCEPTION WHEN foreign_key_violation THEN NULL;
     END;
+    DELETE FROM clubs WHERE id = test_club;
+    IF EXISTS (SELECT 1 FROM teams WHERE id = test_team)
+       OR EXISTS (SELECT 1 FROM ads WHERE id = test_ad)
+       OR EXISTS (SELECT 1 FROM applications WHERE ad_id = test_ad) THEN
+        RAISE EXCEPTION 'Cascade club -> equipes -> annonces -> candidatures incomplete';
+    END IF;
 END $$;
 ROLLBACK;
