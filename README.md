@@ -1,198 +1,121 @@
 # MercaSport
 
-Le mercato du football amateur. Organisation basée sur **MercaSport_Plan_Simple_Essentiel.pdf**, du 06 au 19 octobre 2026.
+Le mercato du football amateur : HTML/CSS/JavaScript de Thomas,
+API Node.js/Express de Matteo et PostgreSQL de Joel.
 
-## Les quatre branches
+## Ce qui est connecté
 
-| Branche | Responsable | Travail |
+- La page charge les annonces de PostgreSQL avec `GET /ads`.
+- « Voir les détails » appelle `GET /ads/:id` et ouvre la fenêtre existante.
+- `POST /applications` enregistre une candidature selon le contrat API déjà prévu.
+- `GET /health` vérifie la connexion à PostgreSQL.
+
+Le front est repris de la branche `front-end`, commit `a47f680`, dans `frontend/`.
+La liste n’utilise plus `ads.json` ni d’annonces fictives codées dans le serveur.
+Les annonces SQL de démonstration restent fictives, mais elles sont réellement lues dans la base.
+Elles sont toutes consultables, sans statut approuvé/attente/refus.
+
+Le périmètre de cette intégration conserve l’interface existante : pas de nouvelle
+authentification, de formulaire de candidature ni de modération.
+Connexion/inscription/admin restent des pages à réaliser ; recherche et les liens
+Actualités/Contact restent à compléter par le front.
+
+## Lancer dans Ubuntu/WSL
+
+Depuis la racine du dépôt, avec **Node.js 22**, npm et PostgreSQL installé :
+
+```bash
+npm ci
+```
+
+La base `mercasport` doit contenir le schéma et les données.
+Si elle n’existe pas encore, la créer puis importer les fichiers :
+
+```bash
+sudo -u postgres createdb mercasport
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport < database/schema.sql
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport < database/seed.sql
+```
+
+Sur la base existante de Joel, ne pas refaire `createdb` ; les procédures de migration
+et de conservation sont dans [database/README.md](database/README.md).
+
+Pour configurer le mot de passe local sans l’envoyer à quelqu’un ni l’afficher :
+
+```bash
+npm run configure
+```
+
+Saisir l’utilisateur PostgreSQL (par défaut `postgres`), puis son mot de passe.
+Le script vérifie la lecture des annonces et crée un `.env` privé uniquement si la connexion fonctionne.
+Ce mot de passe est celui de PostgreSQL, pas celui du compte pgAdmin ou du site.
+Si `.env` existe déjà, le modifier dans VS Code : le script ne l’écrase pas.
+Alternative manuelle : copier `.env.example` vers `.env`, puis compléter `DB_*`.
+
+```bash
+npm start
+```
+
+Ouvrir **http://localhost:3000**, pas le fichier HTML seul ni un serveur Live Server séparé.
+Le serveur sert le front et l’API ensemble ; aucun CORS à configurer pour ce lancement.
+`.env` est ignoré par Git ; chacun configure sa propre connexion PostgreSQL.
+Le lancement historique `cd backend && npm start` reste disponible.
+
+## Fichiers et responsabilités
+
+| Partie | Responsable | Fichiers |
 |---|---|---|
-| `main` | Équipe, intégration avec Joel | Version commune |
-| `front` | Thomas | HTML, CSS, JavaScript et appels API |
-| `back` | Matteo | Node.js, Express, pg et API |
-| `sql` | Joel | PostgreSQL, SQL, Git et README |
+| Front | Thomas | `frontend/index.html`, `frontend/css/`, `frontend/js/` |
+| Back | Matteo | `backend/app.js`, `backend/db.js`, `backend/docs/api.md` |
+| SQL | Joel | `database/schema.sql`, `seed.sql`, `queries.sql` |
+| Intégration | Équipe avec Joel | `server.js`, configuration et tests |
 
-Chacun travaille sur sa branche et publie ses commits ; Joel aide à fusionner une partie qui fonctionne dans `main`.
-Les anciennes tâches GOV/UX et les 117 branches ne font plus partie du plan courant.
-L'historique précédent reste conservé dans Git.
-
-## Se placer sur sa branche
-
-À la racine du dépôt, après avoir enregistré le travail en cours :
-
-```bash
-git fetch --prune origin
-git switch sql
-git pull --ff-only
-```
-
-Thomas remplace `sql` par `front` ; Matteo la remplace par `back`.
-Si la branche n'existe pas encore sur leur poste : `git switch --track origin/front` ou `git switch --track origin/back`.
-
-Pour enregistrer et publier :
-
-```bash
-git status
-git add chemin/du/fichier
-git commit -m "SQL-02 Décrire le changement"
-git push
-```
-
-## Fusionner une partie qui fonctionne
-
-Exemple pour le front, à réaliser par Joel après échange avec Thomas et vérification du travail :
+Les branches de travail sont `front`/`front-end`, `back` et `sql` ; `main` est la version commune.
+Pour récupérer la version commune sur une branche propre :
 
 ```bash
 git fetch origin
-git switch main
-git pull --ff-only
-git merge origin/front
+git merge origin/main
+npm ci
 ```
 
-Vérifier le fonctionnement du projet et résoudre tout conflit avant `git push`.
-Pour récupérer la version commune dans sa branche :
+Contrat complet : [backend/docs/api.md](backend/docs/api.md).
+Le schéma contient six tables : `users`, `players`, `clubs`, `teams`, `ads`, `applications`.
+Le seed fournit 13 clubs, 28 équipes, 28 annonces et trois candidatures.
+
+## Vérification
 
 ```bash
-git switch sql
-git merge main
-git push
+npm test
+npm run test:sql
+npm run build
 ```
 
-Sur un autre poste, faire `git fetch origin`, puis `git merge origin/main` depuis sa branche propre.
+Les tests nécessitent Ubuntu, Python 3 et les binaires serveur PostgreSQL (`pg_config`).
+Ils créent des clusters temporaires privés et ne se connectent pas à `mercasport`.
+Le test HTTP vérifie les annonces réelles, les détails, l’écriture d’une candidature,
+les doublons/erreurs de saisie et une panne de connexion.
+`npm run build` copie uniquement le front dans `public/`, ignoré par Git.
 
-## Structure
+## Préparation Vercel
 
-```text
-frontend/
-  index.html
-  login.html
-  register.html
-  admin.html
-  css/style.css
-  js/app.mjs
-backend/
-  server.mjs
-  db.mjs
-  routes/
-database/
-  schema.sql
-  seed.sql
-  queries.sql
-  README.md
-  tests/
-README.md
-.gitignore
-```
+La racine du dépôt contient `server.js`, qui exporte l’application Express.
+`vercel.json` lance `npm run build` pour préparer les fichiers statiques dans `public/`.
+Les URLs `/ads` et `/ads/:id` fonctionneront sur le même domaine que la page.
+Cette configuration prépare l’hébergement ; elle ne crée aucun déploiement.
 
-La page `index.html` existante est conservée et son chemin CSS est actualisé.
-Les autres pages et fichiers sont des points de départ à compléter, sans fonctionnalités implémentées.
-Les annonces affichées actuellement sont des exemples statiques ; elles devront venir de l'API.
+Lors de l’étape d’hébergement :
 
-## Stack du plan
+1. Préparer une base **PostgreSQL hébergée**, puis y importer `schema.sql` et les données souhaitées.
+2. Importer ce dépôt dans Vercel depuis sa racine, avec Node.js 22.
+3. Ajouter `DATABASE_URL` aux variables privées du projet Vercel, avec l’URL/TLS du fournisseur PostgreSQL.
+4. Vérifier `/health`, les annonces et un détail sur le déploiement de prévisualisation.
 
-- Thomas : HTML, CSS et JavaScript navigateur (`.mjs`).
-- Matteo : Node.js, Express et `pg`.
-- Joel : PostgreSQL et SQL.
+Le PostgreSQL de WSL (`127.0.0.1`) reste sur le PC de Joel ; Vercel doit utiliser une base hébergée.
+La base distante et le déploiement ne sont pas encore créés.
+Le pool est partagé entre les requêtes et associé au cycle de vie Vercel avec `attachDatabasePool`.
+La validation des certificats TLS n’est pas désactivée par le code.
 
-## Installation et lancement
-
-La partie PostgreSQL de Joel contient les cinq tables, les validations, les
-donnees de demonstration et les modeles de requetes pour le backend.
-Les commandes et les comptes de test sont detailles dans [database/README.md](database/README.md).
-La preparation des fichiers ne modifie pas automatiquement la base locale.
-
-Pour une **nouvelle base de demonstration**, depuis la racine dans Ubuntu :
-
-```bash
-sudo -u postgres createdb mercasport_demo
-sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport_demo < database/schema.sql
-sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d mercasport_demo < database/seed.sql
-```
-
-Pour la base existante `mercasport`, suivre la section de sauvegarde et de mise
-a niveau de [database/README.md](database/README.md) pour conserver les comptes et clubs.
-Les anciens clubs passent en validation `pending` si la colonne status n'existait pas.
-
-Test SQL isole, sans toucher a mercasport :
-
-```bash
-python3 database/tests/run.py
-```
-
-La demonstration contient Joel Lopes Ribeiro, Thomas Lapin et Matteo GrosBras
-comme joueurs, ainsi que les clubs et un compte admin.
-Le mot de passe public de demonstration ne doit jamais servir sur un site public.
-
-Le frontend reste la partie de Thomas : ouvrir `frontend/index.html` pour la
-version statique ; Thomas documentera son serveur HTTP pour les appels fetch.
-Matteo garde Node.js/Express, la connexion pg et les controles de role.
-Il peut utiliser [database/queries.sql](database/queries.sql) comme reference de requetes parametrees.
-La commande du serveur, son port et son `.env` seront documentes avec son implementation.
-
-## Les 17 tâches essentielles
-
-### Joel — branche sql
-
-| ID | Tâche | Terminé quand |
-|---|---|---|
-| SQL-01 | Installer PostgreSQL et créer mercasport | La base existe et Joel sait s'y connecter |
-| SQL-02 | Créer schema.sql | users, clubs, players, ads et applications existent |
-| SQL-03 | Ajouter relations et contraintes | Les liens entre les cinq tables sont cohérents |
-| SQL-04 | Créer seed.sql | Des comptes, clubs, joueurs et annonces de test peuvent être ajoutés |
-| GIT-01 | Maintenir main/front/back/sql | Les trois travaillent sans écraser le travail des autres |
-| DOC-01 | Maintenir ce README | Les commandes d'installation et de lancement sont documentées |
-
-### Thomas — branche front
-
-| ID | Tâche | Terminé quand |
-|---|---|---|
-| FRONT-01 | Page des annonces | La liste affiche club, poste, ville et description courte |
-| FRONT-02 | Détail d'une annonce | Voir plus charge le détail sans rechargement complet |
-| FRONT-03 | Inscription et connexion | Joueur et club peuvent saisir leurs informations |
-| FRONT-04 | Espaces joueur et club | Le joueur voit ses candidatures et le club ses annonces |
-| FRONT-05 | Administration simple | L'admin voit les annonces pending et les actions principales |
-
-### Matteo — branche back
-
-| ID | Tâche | Terminé quand |
-|---|---|---|
-| BACK-01 | Initialiser Node.js et Express | Le serveur démarre et répond |
-| BACK-02 | Connecter PostgreSQL | Le back lit les données de la base |
-| BACK-03 | API des annonces | Le front liste et consulte les annonces approved |
-| BACK-04 | Inscription, connexion et rôles | Joueur, club et admin sont distingués |
-| BACK-05 | Annonce et modération | Le club crée une annonce pending, l'admin l'approuve ou la refuse |
-| BACK-06 | Candidature joueur | Joueur, annonce, message et date sont enregistrés |
-
-Suivi simple : **À faire / En cours / Terminé**.
-La préparation des fichiers ne valide aucune fonctionnalité.
-
-## Ordre de travail
-
-| Dates | Priorité |
-|---|---|
-| 06–07 octobre | PostgreSQL et schéma ; front statique ; Express et connexion BDD |
-| 08–09 octobre | Afficher les annonces SQL via l'API |
-| 10–11 octobre | Corriger les blocages |
-| 12–13 octobre | Comptes et rôles |
-| 14–15 octobre | Création d'annonce et modération |
-| 16 octobre | Candidature |
-| 17–18 octobre | Assemblage, corrections, README et design minimum |
-| 19 octobre | Vérification finale et livraison |
-
-## Vérification finale
-
-- [ ] Le projet se lance en local.
-- [ ] PostgreSQL contient des données de démonstration.
-- [ ] Seules les annonces approved sont publiques.
-- [ ] Voir plus affiche le détail.
-- [ ] Un joueur peut créer un compte et se connecter.
-- [ ] Un club peut créer un compte et se connecter.
-- [ ] Une annonce créée par un club arrive en pending.
-- [ ] L'admin peut approuver ou refuser une annonce.
-- [ ] Une annonce approved devient publique.
-- [ ] Un joueur peut postuler.
-- [ ] La candidature est enregistrée en base.
-- [ ] L'admin accède à une gestion simple.
-- [ ] Le README explique comment lancer le projet.
-- [ ] Chacun sait expliquer sa partie principale.
-
-Pas de messagerie, favoris, IA, statistiques, carte, notifications ou design avancé dans ce périmètre.
+Références officielles : [Express sur Vercel](https://vercel.com/docs/frameworks/backend/express),
+[PostgreSQL hébergé via Marketplace](https://vercel.com/docs/postgres),
+[gestion des pools](https://vercel.com/kb/guide/efficiently-manage-database-connection-pools-with-fluid-compute).

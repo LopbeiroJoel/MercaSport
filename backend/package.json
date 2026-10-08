@@ -1,16 +1,15 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "main": "server.js",
   "type": "commonjs",
+  "scripts": {
+    "start": "node --env-file-if-exists=../.env server.js",
+    "test": "python3 ../tests/integration.py"
+  },
   "dependencies": {
+    "@vercel/functions": "^3.9.11",
     "express": "^5.2.1",
     "pg": "^8.23.1"
   }

@@ -30,3 +30,7 @@ Thumbs.db
 
 # Sauvegardes PostgreSQL locales
 *.dump
+
+# Frontend généré pour Vercel
+/public/
+.vercel/

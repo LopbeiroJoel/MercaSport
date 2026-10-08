@@ -1,0 +1,16 @@
+{
+  "name": "mercasport",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": "22.x" },
+  "workspaces": ["backend"],
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "build": "node scripts/build.js",
+    "configure": "python3 scripts/configure-local.py",
+    "test": "python3 tests/integration.py",
+    "test:sql": "python3 database/tests/run.py"
+  },
+  "dependencies": { "express": "^5.2.1" }
+}
