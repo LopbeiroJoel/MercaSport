@@ -1,68 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content=
-        "width=device-width, initial-scale=1.0">
-    <title>
-        Mercasport
-    </title>
-    
-    <link rel="stylesheet" href="style.css">
+<html lang="fr">                                  <!-- racine de la page, contenu en français -->
+<head>                                            <!-- infos invisibles : réglages, titre, CSS -->
+  <meta charset="UTF-8">                          <!-- encodage : permet d'afficher les accents -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0"> <!-- adapte la page à la largeur du téléphone -->
+  <title>Mercasport</title>                       <!-- titre affiché dans l'onglet du navigateur -->
+  <link rel="stylesheet" href="style.css">        <!-- relie le fichier de style -->
 </head>
 
-<body>
-    <header>
-        <h1>Bienvenue sur Mercasport</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="index.html">Accueil</a></li>
-            <li><a href="offres.html">Offres</a></li>
-            <li><a href="actualites.html">Actualités</a></li>
-            <li><a href="contact.html">Contact</a></li>
-            <li><a href="login.html">Se connecter</a></li>
-            <li><a href="register.html">S'inscrire</a></li>
-        </ul>
-    </nav>
-    <section class="search">
-        <h2>Démarrez votre carrière professionnelle ici</h2>
-        <form action="#" method="get">
-            <input type="text" name="keywords" 
-                placeholder="Mot-clés">
-            <input type="text" name="location" 
-                placeholder="Localisation">
-            <input type="text" name="company" 
-                placeholder="Club">
-            <button type="submit">
-                Rechercher
-            </button>
-        </form>
-    </section>
-    <section class="job-listings">
-        <h2>Dernières offres</h2>
-        <ul>
-            <li>
-                <h3>Entraineur U19</h3>
-                <p>Club: Bischoffsheim FC</p>
-                <p>Location: Bischoffsheim</p>
-                <p>Description: Nous souhaitons accueillir un entraîneur capable d’accompagner un groupe de jeunes joueurs à une étape importante de leur carrière et de s’investir pleinement dans le projet sportif du Club.<br>Vous souhaitez relever ce nouveau défi et rejoindre notre équipe technique ?<br>Les personnes intéressées sont invitées à contacter directement notre directeur technique.</p>
-                <a href="#">Postuler</a>
-            </li>
-            <li>
-                <h3>Nutritionniste sportive</h3>
-                <p>Club: A.S.L. ROBERTSAU</p>
-                <p>Location: Robertsau</p>
-                <p>Description: Nous recherchons un nutritionniste pour rejoindre notre équipe, qui fournira un soutien nutritionnel de premier ordre au programme d’excellence et aux programmes de performance sportive de A.S.L. ROBERTSAU. Il s’agit d’une occasion unique de travailler avec des athlètes d’élite qui participent à des compétitions nationales et internationales, tout en contribuant au développement de la prochaine génération de talents sportifs dans un environnement réputé pour son excellence, son innovation et sa collaboration.</p>
-                <a href="#">Postuler</a>
-            </li>
-        </ul>
-    </section>
-    
-    <footer>
-        <p>© 2026 MERCASPORT</p>
-    </footer>
-</body>
+<body>                                            <!-- tout ce qui est visible dans la page -->
 
+  <header>                                        <!-- en-tête du site -->
+    <h1>Bienvenue sur Mercasport</h1>             <!-- titre principal (un seul h1 par page) -->
+  </header>
+
+  <nav>                                           <!-- barre de navigation -->
+    <ul>                                          <!-- liste non ordonnée de liens -->
+      <li><a href="index.html">Accueil</a></li>   <!-- chaque lien est dans un <li> -->
+      <li><a href="offres.html">Offres</a></li>   <!-- vers la page de toutes les offres -->
+      <li><a href="actualites.html">Actualités</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="login.html">Se connecter</a></li>
+      <li><a href="register.html">S'inscrire</a></li>
+    </ul>
+  </nav>
+
+  <section class="search">                        <!-- zone de recherche ; "class" sert au style CSS -->
+    <h2>Démarrez votre carrière professionnelle ici</h2> <!-- titre de la section -->
+    <form action="#" method="get">                <!-- formulaire de recherche -->
+      <input type="text" name="keywords" placeholder="Mot-clés">      <!-- champ : mots-clés -->
+      <input type="text" name="location" placeholder="Localisation">  <!-- champ : lieu -->
+      <input type="text" name="company" placeholder="Club">           <!-- champ : club -->
+      <button type="submit">Rechercher</button>   <!-- envoie le formulaire (recharge la page pour l'instant) -->
+    </form>
+  </section>
+
+  <section class="job-listings">                  <!-- zone des offres -->
+    <h2>Dernières offres</h2>
+    <ul id="ads-list"></ul>                       <!-- liste VIDE : le JS y crée une carte par offre.
+                                                       Son id doit être identique à getElementById("ads-list") -->
+  </section>
+
+  <dialog id="ads-detail">                        <!-- la modale, cachée par défaut.
+                                                       JS : getElementById("ads-detail"), showModal() / close() -->
+    <div class="ads-inner">
+
+        <button id="x-detail" aria-label="Fermer la fenêtre">&#10005;</button>
+                                                  <!-- la croix. &#10005; = symbole ✕ ;
+                                                       aria-label = texte lu par les lecteurs d'écran ;
+                                                       JS : getElementById("x-detail"). Hors de la div ci-dessous,
+                                                       donc elle n'est jamais effacée -->
+        <div id="ads-content"></div>                  <!-- zone de contenu : JS la vide et la remplit à chaque clic.
+                                                       JS : getElementById("ads-content") -->
+    </div>
+  </dialog>
+
+  <footer>                                        <!-- pied de page -->
+    <p>© 2026 MERCASPORT</p>
+  </footer>
+
+  <script src="script.js"></script>               <!-- charge le JS EN DERNIER : les éléments ci-dessus existent déjà -->
+</body>
 </html>
