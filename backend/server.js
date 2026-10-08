@@ -1,6 +1,25 @@
 const express = require('express');
 const app = express();
 const PORT = 3000;
+const pool = require('./db.js');
+
+// 2. appeler : pool.query(...)
+async function verifierConnexion() {
+    try {
+        // Exécution de la requête
+        const res = await pool.query('SELECT NOW();');
+
+        // Vérification du résultat dans la console
+        console.log('✅ Connexion PostgreSQL réussie !');
+        console.log('Heure du serveur de la base de données :', res.rows[0].now);
+    } catch (erreur) {
+        // Gestion des erreurs si la connexion ou la requête échoue
+        console.error('❌ Erreur lors de la vérification PostgreSQL :', erreur.message);
+    }
+}
+
+// Appel de la fonction
+verifierConnexion();
 
 // Route de santé (Health Check)
 app.get('/health', (req, res) => {
