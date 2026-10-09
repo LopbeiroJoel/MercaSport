@@ -5,14 +5,13 @@ const list = document.getElementById("ads-list");       // la <ul> qui contiendr
 const detail = document.getElementById("ads-detail");   // le <dialog> (la modale entière)
 const content = document.getElementById("ads-content"); // la <div> dans la modale, vidée et remplie à chaque clic
 const closeBtn = document.getElementById("x-detail");   // la croix, qui reste en place dans la modale
-const maModale = document.getElementById("ads-detail"); // le <dialog> (la modale entière)
-const API_URL = "http://localhost:3000";
+const API_URL = "";          // l'URL de l'API
 
 
 // ===== 3. LA BOUCLE : UNE CARTE PAR OFFRE =====
 async function loadAds() {
   try {
-    const response = await fetch(API_URL + "/ads");
+    const response = await fetch(API_URL + "/ads"); // requête GET vers l'API pour récupérer les offres
     if (!response.ok) { 
      throw new Error("Erreur " + response.status); 
 } 
@@ -95,8 +94,8 @@ loadAds();
 closeBtn.addEventListener("click", () => {              // au clic sur la croix...
   detail.close();                                       // ...on ferme le <dialog> (même élément que showModal)
 });
-maModale.addEventListener("click", (event) => {
-    if (event.target === maModale) {
-        maModale.close();
+detail.addEventListener("click", (event) => {
+    if (event.target === detail) {
+        detail.close();
     }
 });
