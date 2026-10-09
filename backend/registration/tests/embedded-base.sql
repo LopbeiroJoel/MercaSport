@@ -1,0 +1,25 @@
+-- Base minimale du moteur PostgreSQL embarqué, jetable, uniquement pour les tests API.
+CREATE TABLE public.users (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name VARCHAR(100) NOT NULL, email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL, role VARCHAR(10) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT users_role_check CHECK (role IN ('player','club','admin'))
+);
+CREATE TABLE public.players (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id INTEGER UNIQUE NOT NULL REFERENCES public.users(id),
+  first_name VARCHAR(100) NOT NULL,last_name VARCHAR(100) NOT NULL
+);
+CREATE TABLE public.clubs (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id INTEGER UNIQUE REFERENCES public.users(id),
+  name VARCHAR(150) NOT NULL,city VARCHAR(100) NOT NULL,divisions TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE public.teams (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,club_id INTEGER REFERENCES public.clubs(id));
+CREATE TABLE public.ads (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,team_id INTEGER REFERENCES public.teams(id));
+CREATE TABLE public.applications (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  ad_id INTEGER REFERENCES public.ads(id),player_id INTEGER REFERENCES public.players(id),name TEXT,email TEXT
+);
