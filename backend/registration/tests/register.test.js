@@ -69,6 +69,7 @@ test('contrôles des champs : aucun ADMIN, mot de passe court, profil incompatib
     { ...player, password: 'court' }, { ...player, is_verified: true },
     { ...player, profile: { first_name: 'Joel' } },
     { ...player, profile: { ...player.profile, height_cm: '180' } },
+    { ...player, profile: { ...player.profile, position: 'p'.repeat(51) } },
     { ...player, profile: { ...player.profile, preferred_foot: 'Droit' } },
     { ...player, profile: { ...player.profile, birth_date: '2025-02-30' } },
     { ...player, profile: { ...player.profile, birth_date: '0000-01-01' } },

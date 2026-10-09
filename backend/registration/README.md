@@ -64,7 +64,7 @@ Les seules informations obligatoires du profil joueur sont `first_name` et `last
 | Champ joueur | Règle |
 | --- | --- |
 | `birth_date` | Date réelle, non future, au format `AAAA-MM-JJ` |
-| `position` | Texte, 100 caractères maximum |
+| `position` | Texte, 50 caractères maximum (limite vérifiée dans Neon) |
 | `preferred_foot` | `RIGHT` = droit ; `LEFT` = gauche ; `BOTH` = les deux |
 | `height_cm` | Nombre entier de 100 à 250 ; écrire `180`, pas `"180"` |
 | `current_club` | Texte, 150 caractères maximum |

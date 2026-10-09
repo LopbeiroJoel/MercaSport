@@ -63,7 +63,7 @@ function validateRegistration(body) {
   } else if (body.role === 'PLAYER') {
     text('first_name', 100, true);
     text('last_name', 100, true);
-    text('position', 100);
+    text('position', 50);
     text('current_club', 150);
     const foot = profile.preferred_foot;
     if (foot != null && !['RIGHT', 'LEFT', 'BOTH'].includes(foot)) {
