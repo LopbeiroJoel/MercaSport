@@ -1,0 +1,7 @@
+{
+  "name": "@mercasport/licenses",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "dependencies": { "busboy": "1.6.0", "file-type": "22.1.1" }
+}

@@ -2,7 +2,9 @@
 
 ## Ce qui est livré
 
-Le dossier ajoute un module Express pour `POST /auth/register` et ses contrôles. Aucun fichier du backend actuel, du front, des dépendances ou du déploiement n'est modifié. La route n'est donc pas encore active sur `mercasport.vercel.app`.
+Le dossier ajoute un module Express pour `POST /auth/register` et ses contrôles. Aucun fichier du backend actuel, du front ou du déploiement n'est modifié. SEC-01 ajoute un package et un verrou de dépendance propres à ce dossier pour Argon2id ; les package.json et package-lock.json existants restent intacts. La route n'est donc pas encore active sur `mercasport.vercel.app`.
+
+La mise à jour SEC-01/API-03 est locale, non commitée et non poussée. La branche distante contient encore la première version scrypt jusqu'à autorisation d'un nouveau push.
 
 Les fichiers utiles sont :
 
@@ -10,7 +12,8 @@ Les fichiers utiles sont :
 | --- | --- |
 | `router.js` | Route HTTP, contrôles des doublons, transaction SQL, réponses JSON |
 | `validation.js` | Validation et nettoyage des informations envoyées |
-| `password.js` | Hash scrypt salé et comparaison du nouveau format |
+| `password.js` | Hash Argon2id salé, comparaison Argon2id et compatibilité du précédent format scrypt |
+| `package.json` / `package-lock.json` | Dépendance hash-wasm 4.12.0 propre au module, sans modification des dépendances du backend actuel |
 | `server.js` | Serveur séparé pour tester le module avec les routes existantes |
 | `tests/` | Tests HTTP/SQL sur une base jetable ; aucune écriture dans Neon |
 
@@ -19,7 +22,7 @@ Les fichiers utiles sont :
 1. Le front envoie un objet JSON avec `email`, `username`, `password`, `role` et `profile`.
 2. L'API refuse les informations manquantes, les champs inconnus et le rôle `ADMIN`.
 3. Elle vérifie que l'e-mail et le pseudo sont disponibles, sans tenir compte de la casse.
-4. Elle transforme le mot de passe en hash scrypt avec un sel aléatoire. Le mot de passe en clair n'est jamais enregistré.
+4. Elle transforme le mot de passe en hash Argon2id avec un sel aléatoire. Le mot de passe en clair n'est jamais enregistré.
 5. Dans **une seule transaction**, elle ajoute la ligne dans `users`, puis le profil joueur ou club avec le même `user_id`. Les déclencheurs SQL existants assurent la compatibilité avec `players` et `clubs`.
 6. Si les deux insertions réussissent, elle valide la transaction et renvoie `201`. Si le profil échoue, elle annule le compte : il ne reste pas de compte incomplet.
 
@@ -149,7 +152,13 @@ Exemple d'erreur :
 
 ### Tester sans changer le serveur actuel
 
-Depuis la racine du projet, avec les dépendances existantes installées :
+Depuis la racine du projet, avec les dépendances existantes installées, installer d'abord la dépendance du module :
+
+```bash
+npm ci --prefix backend/registration --workspaces=false --ignore-scripts
+```
+
+Puis lancer le serveur séparé :
 
 ```bash
 PORT=3001 node --env-file-if-exists=.env backend/registration/server.js
@@ -175,6 +184,8 @@ app.use('/auth', createRegistrationRouter(pool));
 
 Le placement avant le parseur JSON actuel garantit la limite de 8 Ko de l'inscription et sa gestion d'erreurs dédiée. Les routes `/health`, `/ads`, `/ads/:id` et `/applications` restent dans leur code actuel.
 
+Pour un futur déploiement de ce module, l'installation doit aussi inclure sa dépendance : `npm ci && npm ci --prefix backend/registration --workspaces=false --ignore-scripts`. Cette commande pourra être définie dans la configuration du déploiement au moment de l'activation ; elle n'est pas appliquée à Vercel dans cette livraison.
+
 **Ces deux lignes ne sont pas ajoutées automatiquement dans cette livraison**, conformément à la demande de préserver le backend actuel. Après leur ajout par Matteo et le déploiement, l'adresse publique sera `POST https://mercasport.vercel.app/auth/register`. Avant cela, cette adresse ne fournit pas cette API.
 
 Exemple pour le développeur front, après activation :
@@ -195,9 +206,17 @@ if (response.status === 201) {
 
 ## Mots de passe et vérification
 
-Le nouveau format est `scrypt$v1$131072$8$1$SEL$HASH`. Node.js fournit scrypt sans nouvelle dépendance ; les paramètres correspondent au minimum scrypt conseillé par [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) : `N=131072`, `r=8`, `p=1` ; sel aléatoire de 16 octets. Voir aussi la [documentation Node.js](https://nodejs.org/docs/latest-v22.x/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback).
+SEC-01 utilise désormais Argon2id. Le format enregistré est `$argon2id$v=19$m=65536,t=3,p=1$SEL$HASH` : mémoire 64 Mio, 3 passes, parallélisme 1, sel aléatoire de 16 octets et hash de 32 octets. Les paramètres dépassent le minimum Argon2id indiqué par [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). L'implémentation est [hash-wasm](https://github.com/Daninet/hash-wasm), version verrouillée 4.12.0, exécutée côté serveur. Aucun mot de passe ne doit être hashé uniquement côté navigateur pour remplacer cette protection serveur.
 
-Les anciens hashes bcrypt sont conservés. `verifyPassword()` est un outil de comparaison pour **les nouveaux hashes scrypt seulement**. Pour la future connexion, Matteo devra prendre en charge les deux formats ; un ancien hash bcrypt ne doit pas être remplacé ni passé à cette fonction comme s'il était scrypt.
+Les anciens hashes bcrypt sont conservés. `verifyPassword()` compare les nouveaux hashes Argon2id et le format scrypt de la première version du module ; la comparaison utilise `timingSafeEqual`. Les réglages acceptés sont bornés au format produit par le module pour refuser les hashes malformés ou des coûts arbitraires. Pour la future connexion, Matteo devra aussi gérer bcrypt, qui n'est pas implémenté par cette fonction. Un ancien hash ne peut pas être converti correctement en Argon2id sans disposer du mot de passe en clair à nouveau, par exemple lors d'une connexion réussie ; aucune réécriture des comptes existants n'est faite ici.
+
+## API-03 : transaction vers Neon
+
+Le code de `router.js` réutilise le pool PostgreSQL actuel. Quand `DATABASE_URL` désigne Neon, les insertions de ce module sont donc envoyées à Neon. Aucune nouvelle colonne n'est nécessaire : `users.password_hash` est déjà un champ TEXT adapté au format Argon2id.
+
+Le hash est calculé avant d'ouvrir la transaction. Ensuite, toutes les écritures utilisent **la même connexion** : `pool.connect()` → `BEGIN` → `INSERT users` → `INSERT player_profiles` ou `club_profiles` → `COMMIT`. `user.id`, renvoyé par PostgreSQL, devient la clé étrangère `profile.user_id`. En cas d'erreur avant validation, `ROLLBACK` annule les écritures ; `client.release()` rend la connexion au pool.
+
+Cette transaction était déjà présente dans API-01 : API-03 vérifie et documente son comportement, sans ajouter une deuxième route ni une insertion en double. Une inscription fictive n'est pas envoyée à Neon pour ce test ; les essais utilisent une base jetable. L'activation de la route reste nécessaire pour que les vraies inscriptions soient enregistrées depuis le formulaire.
 
 L'inscription fixe `is_verified=false`. Elle n'envoie pas d'e-mail, ne crée pas de session/JWT, n'ajoute pas de document dans `player_verifications` et n'approuve pas un joueur. `users.status` conserve son défaut existant `PENDING`, distinct du statut d'une demande de document.
 
@@ -205,7 +224,7 @@ Avant l'ouverture publique, Matteo doit prévoir une limitation des inscriptions
 
 ## Tests et limites de validation
 
-Neuf tests HTTP/SQL du module passent avec PostgreSQL embarqué PGlite sur une base jetable : joueur, club, hash salé, champs incorrects, refus ADMIN, doublons, concurrence, rollback d'un profil en échec, JSON et panne de base. Aucune inscription réelle n'a été envoyée à Neon.
+Douze tests HTTP/SQL du module passent avec PostgreSQL embarqué PGlite sur une base jetable : joueur, club, hash Argon2id salé et mot de passe incorrect, champs invalides, refus ADMIN, doublons, concurrence, rollback d'un profil en échec, JSON, panne de base, compatibilité scrypt, refus des hashes malformés et rollback sur une véritable erreur de contrainte SQL du profil. Aucune inscription réelle n'a été envoyée à Neon.
 
 La suite PostgreSQL 18 native sous Ubuntu a été lancée, mais le démarrage du cluster local s'est bloqué ; elle n'est pas déclarée réussie. Pour la relancer après rétablissement d'Ubuntu :
 

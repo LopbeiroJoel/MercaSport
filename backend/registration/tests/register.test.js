@@ -40,10 +40,10 @@ test('PLAYER : compte, profil et joueur compatibles, hash salé et aucune fuite 
   assert.equal(result.user.is_verified, false);
   assert.equal(result.profile.user_id, result.user.id);
   assert.equal(result.profile.first_name, 'Joel');
-  assert.ok(!JSON.stringify(result).includes('scrypt$'));
+  assert.ok(!JSON.stringify(result).includes('$argon2id$'));
   assert.ok(!JSON.stringify(result).includes(password));
   const { rows } = await pool.query('SELECT * FROM users WHERE id=$1', [result.user.id]);
-  assert.match(rows[0].password_hash, /^scrypt\$v1\$131072\$8\$1\$/);
+  assert.match(rows[0].password_hash, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/);
   assert.equal(await verifyPassword(password, rows[0].password_hash), true);
   assert.equal(await verifyPassword(`${password} faux`, rows[0].password_hash), false);
   const legacy = await pool.query('SELECT * FROM players WHERE user_id=$1', [result.user.id]);
@@ -159,4 +159,42 @@ test('validation : phrase longue, accents, pieds et dates réelles acceptés ; m
   assert.deepEqual(result.errors, {});
   assert.equal(result.data.password, body.password);
   assert.equal(result.data.username, 'FC Hégenheim');
+});
+
+test('SEC-01 : le format scrypt historique reste vérifiable sans créer de nouveaux hashes scrypt', async () => {
+  const { scrypt, randomBytes } = require('node:crypto');
+  const { promisify } = require('node:util');
+  const salt = randomBytes(16);
+  const key = await promisify(scrypt)(password, salt, 64,
+    { N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024 });
+  const legacy = `scrypt$v1$131072$8$1$${salt.toString('hex')}$${key.toString('hex')}`;
+  assert.equal(await verifyPassword(password, legacy), true);
+  assert.equal(await verifyPassword('Mauvais mot de passe', legacy), false);
+});
+
+test('SEC-01 : hashes malformés ou paramètres arbitraires refusés avant tout calcul', async () => {
+  for (const hash of ['', 'mot-de-passe-en-clair', '$argon2id$v=19$m=999999999,t=99,p=99$bad$bad',
+    '$2b$12$ancien-format-non-pris-en-charge-ici', null]) {
+    assert.equal(await verifyPassword(password, hash), false);
+  }
+});
+
+test('API-03 : une vraie erreur de contrainte SQL du profil annule aussi le compte', async () => {
+  await pool.query(`CREATE FUNCTION registration_test_refuse_profile() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN IF NEW.first_name='RollbackSQL' THEN
+      RAISE EXCEPTION 'Test rollback' USING ERRCODE='23514';
+    END IF; RETURN NEW; END $$`);
+  await pool.query(`CREATE TRIGGER registration_test_refuse BEFORE INSERT ON player_profiles
+    FOR EACH ROW EXECUTE FUNCTION registration_test_refuse_profile()`);
+  try {
+    const response = await post({ ...player, email: 'rollback-sql@example.invalid', username: 'Rollback SQL',
+      profile: { first_name: 'RollbackSQL', last_name: 'Test' } });
+    assert.equal(response.status, 500);
+    assert.equal((await response.json()).code, 'REGISTER_FAILED');
+    const result = await pool.query(`SELECT count(*) AS n FROM users WHERE email=$1`, ['rollback-sql@example.invalid']);
+    assert.equal(Number(result.rows[0].n), 0);
+  } finally {
+    await pool.query('DROP TRIGGER registration_test_refuse ON player_profiles');
+    await pool.query('DROP FUNCTION registration_test_refuse_profile()');
+  }
 });
