@@ -73,16 +73,61 @@ Si la connexion se coupe pendant COMMIT, on ne peut pas savoir immédiatement si
 
 Le disque local est refusé sur Vercel : il faudra un stockage objet durable privé avec un adaptateur `private: true`, `put({key, buffer, contentType})` et `remove(key)`. Adapter la taille maximale à la plateforme d’hébergement avant le déploiement. Ne jamais placer une licence dans le frontend, Git ou une URL publique.
 
-Les contrôles de format ne constituent pas un antivirus ni une validation complète du contenu PDF/image. Aucun antivirus, téléchargement, consultation administrateur ou processus de décision n’a été ajouté. Prévoir l’analyse du document avant d’autoriser sa consultation.
+Les contrôles de format ne constituent pas un antivirus ni une validation complète du contenu PDF/image. Aucun antivirus, téléchargement ou écran de consultation administrateur n’a été ajouté. Prévoir l’analyse du document avant d’autoriser sa consultation.
+
+## LIC-02 : enregistrer la demande
+
+Déjà inclus dans `router.js` : l’envoi crée une demande dans `player_verifications` avec l’identifiant du joueur connecté, la référence du fichier privé, le statut `PENDING` et la date d’envoi. Le fichier reste dans le stockage privé ; Neon conserve sa référence. Ce comportement reste à activer sur le serveur réel.
+
+## LIC-03 : décision manuelle de l’administrateur
+
+`admin-router.js` prépare deux routes, séparées du serveur actuel :
+
+- `GET /admin/licenses` : demandes PENDING, 50 maximum, sans clé de document. Pour la page suivante, utiliser `?after=<next_after>` si `next_after` n’est pas null.
+- `PATCH /admin/licenses/:id` : accepter ou refuser une demande PENDING. L’identifiant dans l’URL est celui de la demande, pas celui du joueur.
+
+Accepter :
+
+```json
+{"status":"APPROVED"}
+```
+
+Refuser :
+
+```json
+{"status":"REJECTED","rejection_reason":"Licence illisible"}
+```
+
+Le serveur exige un compte ADMIN issu d’une connexion vérifiée. Il revérifie ce rôle dans la transaction, verrouille le compte joueur et la demande, puis enregistre la décision, `reviewed_by`, `reviewed_at` et le motif du refus. Le motif est obligatoire pour un refus et limité à 1000 caractères. Le corps JSON est limité à 4 Kio ; les champs supplémentaires sont refusés.
+
+Dans la même transaction, `users.status` devient `APPROVED` ou `REJECTED`. Si une mise à jour échoue, les deux modifications sont annulées. Une demande déjà décidée retourne 409 ; deux décisions simultanées ne peuvent pas se remplacer. `users.is_verified` reste inchangé : la validation d’une licence et la confirmation de l’e-mail sont distinctes.
+
+Exemple de montage futur, avant le parseur JSON global et la réponse 404 :
+
+```js
+const { createLicenseAdminRouter } = require('./backend/licenses/admin-router');
+app.use('/admin', createLicenseAdminRouter(pool, {
+  authenticate: async req => {
+    const session = await verifyExistingSession(req);
+    return session ? { userId: session.userId } : null;
+  },
+}));
+```
+
+`verifyExistingSession` est une fonction du futur système de connexion, pas une fonction fournie ici. Sans authentification, accès refusé avec 401 ; compte non ADMIN : 403 ; demande inexistante : 404. Ajouter la protection CSRF si l’authentification repose sur des cookies. Ne jamais fournir `reviewed_by` depuis le formulaire : il provient de la connexion administrateur.
+
+Aucun compte administrateur réel n’est créé. Aucun écran d’administration ni accès au fichier privé n’est ajouté. Les futures routes réservées aux joueurs devront vérifier `users.status` si l’approbation doit conditionner leur accès : cette décision seule ne crée pas de contrôle d’accès sur le backend existant. Les données réelles et les contraintes de `users.status` sur Neon devront être vérifiées avant le branchement ; les tests embarqués utilisent les statuts APPROVED/REJECTED. Un incident `LICENSE_DECISION_COMMIT_UNCERTAIN` impose de relire la demande avant de retenter une décision.
 
 ## Vérifications locales
 
 Les tests utilisent PostgreSQL embarqué PGlite, des fichiers fictifs et un dossier temporaire supprimé en fin de test. Ils ne contactent pas Neon. Le test d’identité est un bouchon réservé aux tests.
 
 ```bash
-MERCASPORT_TEST_PGLITE=1 node --test backend/licenses/tests/license.test.js
+MERCASPORT_TEST_PGLITE=1 node --test backend/licenses/tests/license.test.js backend/licenses/tests/admin.test.js
 ```
 
 Pour cette commande, Express, pg et `@electric-sql/pglite` doivent être disponibles. PGlite est une dépendance de test uniquement ; sur ce poste, elle est installée dans l’environnement de vérification séparé, via NODE_PATH. Les tests couvrent accès refusé, PDF/PNG acceptés, compte CLUB refusé, formats erronés, champs interdits, taille, doublon concurrent, panne de stockage, rollback SQL, stockage hors dépôt et résultat COMMIT incertain. Le format JPEG est contrôlé dans le module mais n’a pas de test d’acceptation de bout en bout dans cette série.
 
 Documentation des bibliothèques : https://github.com/mscdex/busboy ; https://github.com/sindresorhus/file-type . Principes de contrôle : https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html .
+
+LIC-03 ajoute 8 tests locaux : authentification, refus des comptes PLAYER/CLUB, liste sans fuite de référence privée, acceptation, refus motivé, validation des entrées, décisions concurrentes, rollback et limites du JSON. Avec les tests d’envoi et d’inscription, 31 tests passent. Aucun changement de Neon, du serveur actuel ou de son déploiement n’a été effectué.
