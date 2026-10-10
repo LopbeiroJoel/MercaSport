@@ -1,0 +1,7 @@
+{
+  "name": "@mercasport/authentication",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "dependencies": { "jose": "6.2.12", "bcryptjs": "3.0.3" }
+}
